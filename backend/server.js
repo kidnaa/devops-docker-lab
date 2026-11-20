@@ -192,6 +192,12 @@ app.put("/api/peminjaman/:id/kembali", async (req, res) => {
   }
 });
 
-app.listen(port, "0.0.0.0", () => {
+const startServer = () => app.listen(port, "0.0.0.0", () => {
   console.log(`Backend listening on port ${port}`);
 });
+
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = { app, pool, startServer };
