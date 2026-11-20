@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="id">
+<head>
+ <meta charset="utf-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+ <title>DevOps Multi-Tier Lab</title>
+</head>
+<body>
+ <h1>Demo Aplikasi Multi-Tier</h1>
+ <button id="check">Periksa backend</button>
+ <pre id="result">Klik tombol untuk memeriksa API.</pre>
+ <script>
+     document.getElementById("check").addEventListener("click", async () => {
+ const result = document.getElementById("result");
+ try {
+ const response = await fetch("/api/health");
+ result.textContent = await response.text();
+ } catch (error) {
+ result.textContent = "Request gagal: " + error.message;
+ }
+ });
+ </script>
+</body>
+</html>
