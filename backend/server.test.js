@@ -17,10 +17,11 @@ beforeEach(() => {
 
 describe("server startup", () => {
   test("can start and stop the HTTP server", (done) => {
-    const server = startServer();
+    const server = startServer(0);
     server.on("listening", () => {
       server.close(done);
     });
+    server.on("error", done);
   });
 });
 

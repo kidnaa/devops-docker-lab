@@ -5,8 +5,8 @@
  "main": "server.js",
  "scripts": {
   "start": "node server.js",
-  "test": "jest --runInBand",
-  "test:coverage": "c8 --check-coverage --lines 80 --branches 80 --functions 80 --statements 80 jest --runInBand"
+  "test": "jest --runInBand --watchAll=false",
+  "test:coverage": "c8 --check-coverage --lines 80 --branches 80 --functions 80 --statements 80 jest --runInBand --watchAll=false"
  },
  "dependencies": {
   "express": "^4.21.2",
