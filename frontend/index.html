@@ -1,24 +1,240 @@
 <!doctype html>
 <html lang="id">
 <head>
- <meta charset="utf-8">
- <meta name="viewport" content="width=device-width, initial-scale=1">
- <title>DevOps Multi-Tier Lab</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sistem Informasi Perpustakaan</title>
+<style>
+  :root { --bg:#f5f6fa; --card:#fff; --ink:#1f2937; --muted:#6b7280; --line:#e5e7eb; --brand:#2563eb; --ok:#16a34a; --bad:#dc2626; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--brand); color:#fff; padding:20px 24px; }
+  header h1 { margin:0; font-size:22px; }
+  header p { margin:4px 0 0; opacity:.85; font-size:14px; }
+  main { max-width:1000px; margin:0 auto; padding:20px; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:20px; }
+  .stat { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; }
+  .stat b { display:block; font-size:26px; }
+  .stat span { color:var(--muted); font-size:13px; }
+  .tabs { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+  .tab { border:1px solid var(--line); background:var(--card); padding:8px 16px; border-radius:8px; cursor:pointer; font:inherit; }
+  .tab.active { background:var(--brand); color:#fff; border-color:var(--brand); }
+  .panel { display:none; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  .panel.active { display:block; }
+  .row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+  input, select, button { font:inherit; padding:8px 10px; border:1px solid var(--line); border-radius:8px; }
+  input, select { flex:1; min-width:130px; }
+  button.primary { background:var(--brand); color:#fff; border-color:var(--brand); cursor:pointer; }
+  button.small { padding:4px 10px; cursor:pointer; background:#fff; }
+  button.danger { color:var(--bad); }
+  .scroll { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:8px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { color:var(--muted); font-weight:600; }
+  .badge { padding:2px 8px; border-radius:999px; font-size:12px; }
+  .b-ok { background:#dcfce7; color:#166534; }
+  .b-warn { background:#fef3c7; color:#92400e; }
+  #msg { margin-bottom:12px; font-size:14px; min-height:20px; }
+  .err { color:var(--bad); }
+  .good { color:var(--ok); }
+</style>
 </head>
 <body>
- <h1>Demo Aplikasi Multi-Tier</h1>
- <button id="check">Periksa backend</button>
- <pre id="result">Klik tombol untuk memeriksa API.</pre>
- <script>
-     document.getElementById("check").addEventListener("click", async () => {
- const result = document.getElementById("result");
- try {
- const response = await fetch("/api/health");
- result.textContent = await response.text();
- } catch (error) {
- result.textContent = "Request gagal: " + error.message;
- }
- });
- </script>
+<header>
+  <h1>Sistem Informasi Perpustakaan</h1>
+  <p>Frontend Nginx, backend Express, database PostgreSQL. <span id="health">Memeriksa API...</span></p>
+</header>
+
+<main>
+  <div class="stats">
+    <div class="stat"><b id="s-judul">-</b><span>Judul buku</span></div>
+    <div class="stat"><b id="s-tersedia">-</b><span>Eksemplar tersedia</span></div>
+    <div class="stat"><b id="s-anggota">-</b><span>Anggota</span></div>
+    <div class="stat"><b id="s-dipinjam">-</b><span>Sedang dipinjam</span></div>
+  </div>
+
+  <div id="msg"></div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="buku">Buku</button>
+    <button class="tab" data-tab="anggota">Anggota</button>
+    <button class="tab" data-tab="pinjam">Peminjaman</button>
+  </div>
+
+  <section class="panel active" id="panel-buku">
+    <input id="cari" placeholder="Cari judul atau penulis..." style="width:100%;margin-bottom:12px">
+    <form class="row" id="f-buku">
+      <input name="judul" placeholder="Judul" required>
+      <input name="penulis" placeholder="Penulis" required>
+      <input name="tahun" type="number" placeholder="Tahun">
+      <input name="kategori" placeholder="Kategori">
+      <input name="stok" type="number" min="0" placeholder="Stok">
+      <button class="primary" type="submit">Tambah buku</button>
+    </form>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Judul</th><th>Penulis</th><th>Tahun</th><th>Kategori</th><th>Tersedia</th><th></th></tr></thead>
+        <tbody id="tb-buku"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-anggota">
+    <form class="row" id="f-anggota">
+      <input name="nama" placeholder="Nama" required>
+      <input name="email" type="email" placeholder="Email" required>
+      <button class="primary" type="submit">Tambah anggota</button>
+    </form>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Nama</th><th>Email</th><th></th></tr></thead>
+        <tbody id="tb-anggota"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-pinjam">
+    <form class="row" id="f-pinjam">
+      <select name="buku_id" id="p-buku"></select>
+      <select name="anggota_id" id="p-anggota"></select>
+      <button class="primary" type="submit">Catat peminjaman</button>
+    </form>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Buku</th><th>Peminjam</th><th>Tgl pinjam</th><th>Status</th><th></th></tr></thead>
+        <tbody id="tb-pinjam"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script>
+  const $ = (s) => document.querySelector(s);
+  const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  async function api(path, opts = {}) {
+    const res = await fetch("/api" + path, { headers: { "Content-Type": "application/json" }, ...opts });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Permintaan gagal");
+    return data;
+  }
+
+  function show(text, ok = true) {
+    const m = $("#msg");
+    m.textContent = text;
+    m.className = ok ? "good" : "err";
+  }
+
+  async function loadHealth() {
+    try {
+      const h = await api("/health");
+      $("#health").textContent = "API: " + h.status + ", database " + h.database + ".";
+    } catch (e) {
+      $("#health").textContent = "API tidak dapat dihubungi.";
+    }
+  }
+
+  async function loadStats() {
+    const s = await api("/statistik");
+    $("#s-judul").textContent = s.judul;
+    $("#s-tersedia").textContent = s.tersedia;
+    $("#s-anggota").textContent = s.anggota;
+    $("#s-dipinjam").textContent = s.dipinjam;
+  }
+
+  async function loadBuku() {
+    const q = encodeURIComponent($("#cari").value.trim());
+    const rows = await api("/buku?q=" + q);
+    $("#tb-buku").innerHTML = rows.map((b) => `
+      <tr>
+        <td>${esc(b.judul)}</td><td>${esc(b.penulis)}</td><td>${esc(b.tahun)}</td><td>${esc(b.kategori)}</td>
+        <td><span class="badge ${b.stok > 0 ? "b-ok" : "b-warn"}">${b.stok}</span></td>
+        <td><button class="small danger" data-act="hapus-buku" data-id="${b.id}">Hapus</button></td>
+      </tr>`).join("") || '<tr><td colspan="6">Belum ada data</td></tr>';
+  }
+
+  async function loadAnggota() {
+    const rows = await api("/anggota");
+    $("#tb-anggota").innerHTML = rows.map((a) => `
+      <tr>
+        <td>${esc(a.nama)}</td><td>${esc(a.email)}</td>
+        <td><button class="small danger" data-act="hapus-anggota" data-id="${a.id}">Hapus</button></td>
+      </tr>`).join("") || '<tr><td colspan="3">Belum ada data</td></tr>';
+  }
+
+  async function loadPinjam() {
+    const [rows, buku, anggota] = await Promise.all([api("/peminjaman"), api("/buku?q="), api("/anggota")]);
+    $("#p-buku").innerHTML = buku.filter((b) => b.stok > 0)
+      .map((b) => `<option value="${b.id}">${esc(b.judul)} (${b.stok})</option>`).join("");
+    $("#p-anggota").innerHTML = anggota
+      .map((a) => `<option value="${a.id}">${esc(a.nama)}</option>`).join("");
+    $("#tb-pinjam").innerHTML = rows.map((p) => `
+      <tr>
+        <td>${esc(p.judul)}</td><td>${esc(p.nama)}</td><td>${esc(p.tgl_pinjam)}</td>
+        <td>${p.tgl_kembali
+          ? '<span class="badge b-ok">Kembali ' + esc(p.tgl_kembali) + "</span>"
+          : '<span class="badge b-warn">Dipinjam</span>'}</td>
+        <td>${p.tgl_kembali ? "" : `<button class="small" data-act="kembali" data-id="${p.id}">Kembalikan</button>`}</td>
+      </tr>`).join("") || '<tr><td colspan="5">Belum ada data</td></tr>';
+  }
+
+  async function refreshAll() {
+    await Promise.all([loadStats(), loadBuku(), loadAnggota(), loadPinjam()]);
+  }
+
+  document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("active", x === t));
+    document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("active", p.id === "panel-" + t.dataset.tab));
+  }));
+
+  function bindForm(id, path, okText) {
+    $(id).addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const body = JSON.stringify(Object.fromEntries(new FormData(e.target)));
+      try {
+        await api(path, { method: "POST", body });
+        e.target.reset();
+        show(okText);
+        await refreshAll();
+      } catch (err) {
+        show(err.message, false);
+      }
+    });
+  }
+  bindForm("#f-buku", "/buku", "Buku ditambahkan");
+  bindForm("#f-anggota", "/anggota", "Anggota ditambahkan");
+  bindForm("#f-pinjam", "/peminjaman", "Peminjaman dicatat");
+
+  let timer;
+  $("#cari").addEventListener("input", () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => loadBuku().catch((e) => show(e.message, false)), 250);
+  });
+
+  document.addEventListener("click", async (e) => {
+    const t = e.target.closest("[data-act]");
+    if (!t) return;
+    const id = t.dataset.id;
+    try {
+      if (t.dataset.act === "hapus-buku") {
+        if (!confirm("Hapus buku ini beserta riwayat peminjamannya?")) return;
+        await api("/buku/" + id, { method: "DELETE" });
+      } else if (t.dataset.act === "hapus-anggota") {
+        if (!confirm("Hapus anggota ini beserta riwayat peminjamannya?")) return;
+        await api("/anggota/" + id, { method: "DELETE" });
+      } else if (t.dataset.act === "kembali") {
+        await api("/peminjaman/" + id + "/kembali", { method: "PUT" });
+      }
+      show("Berhasil");
+      await refreshAll();
+    } catch (err) {
+      show(err.message, false);
+    }
+  });
+
+  loadHealth();
+  refreshAll().catch((e) => show(e.message, false));
+</script>
 </body>
 </html>
